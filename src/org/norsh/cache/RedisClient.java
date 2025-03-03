@@ -2,7 +2,7 @@ package org.norsh.cache;
 
 import org.norsh.config.RedisConfig;
 import org.norsh.exceptions.InternalException;
-import org.norsh.util.Logger;
+import org.norsh.util.Log;
 import org.springframework.data.redis.connection.RedisClusterConfiguration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
@@ -30,7 +30,7 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
  */
 public class RedisClient {
 	private static RedisConnectionFactory connectionFactory;
-	private Logger log;
+	private Log log;
 
 	/**
 	 * Initializes the Redis connection factory using configuration values.
@@ -38,7 +38,7 @@ public class RedisClient {
 	 * @param config The application configuration containing Redis settings.
 	 * @return A singleton {@link RedisConnectionFactory} instance.
 	 */
-	public RedisConnectionFactory redisConnectionFactory(RedisConfig redisConfig, Logger log) {
+	public RedisConnectionFactory redisConnectionFactory(RedisConfig redisConfig, Log log) {
 		this.log = log;
 		
 		log.info("Redis Cluster");

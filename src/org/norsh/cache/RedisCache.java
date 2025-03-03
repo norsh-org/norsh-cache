@@ -3,7 +3,7 @@ package org.norsh.cache;
 import java.util.concurrent.TimeUnit;
 
 import org.norsh.util.Converter;
-import org.norsh.util.Logger;
+import org.norsh.util.Log;
 import org.springframework.data.redis.core.RedisTemplate;
 
 /**
@@ -27,9 +27,9 @@ import org.springframework.data.redis.core.RedisTemplate;
  */
 public class RedisCache implements CacheStore {
 	private final RedisTemplate<String, String> redisTemplate;
-	private final Logger log;
+	private final Log log;
 
-	public RedisCache(RedisTemplate<String, String> redisTemplate, Logger log) {
+	public RedisCache(RedisTemplate<String, String> redisTemplate, Log log) {
 		this.redisTemplate = redisTemplate;
 		this.log = log;
 	}
