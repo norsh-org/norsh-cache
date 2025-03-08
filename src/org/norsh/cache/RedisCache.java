@@ -6,36 +6,35 @@ import org.norsh.config.RedisConfig;
 import org.norsh.util.Converter;
 import org.norsh.util.Log;
 
-import io.lettuce.core.RedisClient;
 import io.lettuce.core.RedisURI;
 import io.lettuce.core.SetArgs;
-import io.lettuce.core.api.StatefulRedisConnection;
-import io.lettuce.core.api.sync.RedisCommands;
+import io.lettuce.core.cluster.RedisClusterClient;
+import io.lettuce.core.cluster.api.StatefulRedisClusterConnection;
+import io.lettuce.core.cluster.api.sync.RedisAdvancedClusterCommands;
 
 /**
- * High-performance Redis cache service using Lettuce (without Spring).
+ * High-performance Redis Cluster cache service using Lettuce (without Spring).
  *
  * Features:
  * - Supports TTL for cached keys.
- * - Uses connection pooling for optimal performance.
+ * - Uses Redis Cluster with automatic redirection.
  * - Implements backoff waiting for missing keys without blocking.
  *
- * @since 1.0.1
- * @version 1.0.1
+ * @since 1.0.2
+ * @version 1.0.2
  * @author Danthur Lice
  */
 public class RedisCache {
-    private RedisClient redisClient;
-    private StatefulRedisConnection<String, String> connection;
-    private RedisCommands<String, String> syncCommands;
+    private RedisClusterClient redisClient;
+    private StatefulRedisClusterConnection<String, String> connection;
+    private RedisAdvancedClusterCommands<String, String> syncCommands;
     private final Object LOCK = new Object();
     private Log log;
 
     /**
-     * Initializes Redis connection.
+     * Initializes Redis Cluster connection.
      *
-     * @param redisHost Redis server hostname.
-     * @param redisPort Redis server port.
+     * @param redisConfig Redis cluster configuration.
      * @param log Logger instance.
      */
     public RedisCache(RedisConfig redisConfig, Log log) {
@@ -52,13 +51,13 @@ public class RedisCache {
                     .withPort(redisConfig.getPort())
                     .build();
 
-            redisClient = RedisClient.create(redisURI);
+            redisClient = RedisClusterClient.create(redisURI);
             connection = redisClient.connect();
             syncCommands = connection.sync();
         }
     }
 
-    private RedisCommands<String, String> getCommands() {
+    private RedisAdvancedClusterCommands<String, String> getCommands() {
         if (syncCommands == null) {
             throw new IllegalStateException("RedisCache is not initialized.");
         }
@@ -72,7 +71,6 @@ public class RedisCache {
      * @param value Redis value.
      * @param ttlMs Time-to-live in milliseconds (0 for no expiration).
      */
-    
     public void save(String key, String value, long ttlMs) {
         if (ttlMs < 1000) {
             ttlMs = 1000;
@@ -88,6 +86,14 @@ public class RedisCache {
         }
     }
 
+    /**
+     * Saves a key-value pair in Redis only if it does not already exist (setIfAbsent).
+     *
+     * @param key    Redis key.
+     * @param value  Redis value.
+     * @param ttlMs  Time-to-live in milliseconds.
+     * @return True if the key was set, False if it already exists.
+     */
     public boolean saveIfAbsent(String key, String value, long ttlMs) {
         try {
             Boolean isSet;
@@ -98,11 +104,12 @@ public class RedisCache {
             }
             return isSet;
         } catch (Exception e) {
+        	e.printStackTrace();
             log.error("Error executing setIfAbsent in Redis", e);
             return false;
         }
     }
-    
+
     /**
      * Saves an object in Redis by serializing it to JSON.
      *
@@ -110,7 +117,6 @@ public class RedisCache {
      * @param object The object to store.
      * @param ttlMs  Time-to-live in milliseconds.
      */
-    
     public void save(String key, Object object, long ttlMs) {
         if (object == null) {
             log.error("Cannot save null object in Redis", key);
@@ -128,7 +134,6 @@ public class RedisCache {
      * @param timeoutMs Maximum wait time in milliseconds.
      * @return The value, or null if not found.
      */
-    
     public String get(String key, long timeoutMs) {
         long startTime = System.currentTimeMillis();
         long waitTime = 50; // Initial wait time in milliseconds
@@ -149,15 +154,6 @@ public class RedisCache {
         return value;
     }
 
-    /**
-     * Retrieves an object from Redis by deserializing it from JSON.
-     *
-     * @param key       Redis key.
-     * @param type      The object type.
-     * @param timeoutMs Maximum wait time in milliseconds.
-     * @return The object, or null if not found.
-     */
-    
     public <T> T get(String key, Class<T> type, long timeoutMs) {
         String jsonValue = get(key, timeoutMs);
         if (jsonValue == null) return null;
@@ -170,17 +166,14 @@ public class RedisCache {
         }
     }
 
-    
     public String get(String key) {
         return get(key, 0);
     }
 
-    
     public <T> T get(String key, Class<T> type) {
         return get(key, type, 0);
     }
 
-    
     public void delete(String key) {
         try {
             getCommands().del(key);
@@ -189,7 +182,6 @@ public class RedisCache {
         }
     }
 
-    
     public boolean exists(String key) {
         try {
             return Boolean.TRUE.equals(getCommands().exists(key) > 0);
